@@ -21,9 +21,8 @@ sample <- fread('sample_submission', header = TRUE)
 
 satisfaction_fin <- satisfaction %>% filter(request_id != "") %>% unique()
 support_base <- support_tickets %>% left_join(satisfaction_fin)
-part2 <- support_base %>% select(-current_state, -request_id)
+part2 <- support_base %>% select(-current_state, -request_id) %>% arrange(user_id, activity_start_dt, fact_reaction_dt)
 part1 <- requests %>% select(user_id, item_id, item_starttime)
-part2 <- part2 %>% arrange(user_id, activity_start_dt, fact_reaction_dt)
 
 
 # Добавление difference + числовая шкала для satisfaction -----------------
@@ -196,69 +195,3 @@ mab_oct <- maBina(logit0_oct, x.mean=FALSE)
 # Latex -------------------------------------------------------------------
 
 stargazer(mab_sep, mab_oct, mab_nov, mab_dec, align=TRUE, title="Results")
-
-
-# September ---------------------------------------------------------------
-
-#part2_feedback_sep <- part2_feedback %>% dplyr::filter(fact_reaction_dt > "2015-08-30" ) 
-part2_feedback_sep <- part2_feedback %>% dplyr::filter(fact_reaction_dt > "2015-09-30" ) 
-#part2_feedback_sep <- part2_feedback %>% dplyr::filter(fact_reaction_dt > "2015-10-31" )
-#part2_feedback_sep <- part2_feedback %>% dplyr::filter(fact_reaction_dt > "2015-11-30" )
-
-#part2_feedback_sep <- part2_feedback_sep %>% dplyr::filter(fact_reaction_dt < "2015-10-01" ) 
-part2_feedback_sep <- part2_feedback_sep %>% dplyr::filter(fact_reaction_dt < "2015-11-01" ) 
-#part2_feedback_sep <- part2_feedback_sep %>% dplyr::filter(fact_reaction_dt < "2015-12-01" )
-#part2_feedback_sep <- part2_feedback_sep %>% dplyr::filter(fact_reaction_dt < "2016-01-01" )
-
-part2_feedback_sep <- part2_feedback_sep %>% arrange(fact_reaction_dt)
-part2_feedback_sep_bad <- part2_feedback_sep %>% filter(result_mentioned_by_user == 1)
-part2_feedback_sep_bad <- part2_feedback_sep_bad %>% arrange(user_id)
-part2_feedback_sep_bad_freq <- part2_feedback_sep_bad %>% group_by(user_id) %>% summarise(freq = n())
-part2_feedback_sep_bad <- part2_feedback_sep_bad %>% inner_join(part2_feedback_sep_bad_freq)
-
-part2_feedback_sep_bad_lastrow <- part2_feedback_sep_bad %>% group_by(user_id) %>%
-  filter(row_number() == n())    
-
-part1_sep <- part1 %>% filter(user_id %in% part2_feedback_sep_bad_lastrow$user_id)
-
-#part1_sep <- part1_sep %>% filter(item_starttime > "2015-07-31")
-part1_sep <- part1_sep %>% filter(item_starttime > "2015-08-30")
-#part1_sep <- part1_sep %>% filter(item_starttime > "2015-09-30")
-#part1_sep <- part1_sep %>% filter(item_starttime > "2015-10-31")
-
-#part1_sep <- part1_sep %>% filter(item_starttime < "2015-11-01")
-part1_sep <- part1_sep%>%filter(item_starttime < "2015-12-01")
-#part1_sep <- part1_sep%>%filter(item_starttime < "2016-01-01")
-#part1_sep <- part1_sep %>% filter(item_starttime < "2016-02-01")
-
-joined_sep <- part1_sep %>% inner_join(part2_feedback_sep_bad_lastrow)
-joined_sep <- joined_sep %>% mutate(dummy_before = ifelse(item_starttime < fact_reaction_dt, 1, 0))
-joined_frq <- joined_sep %>% group_by(user_id) %>% summarise(posts = n())
-summary <- joined_sep %>% group_by(user_id) %>% summarise(before = sum(dummy_before))
-summary <- summary %>% inner_join(joined_frq)
-summary <- summary %>% mutate(after = posts - before)
-
-mean(summary$before)
-mean(summary$after)
-t.test(summary$before, summary$after, alternative = 'greater', paired= TRUE)
-
-summary %>% filter(before != 0)
-#число отписавшихся
-summary %>% filter(before != 0, after == 0)
-
-summary <- summary %>% select(user_id, before, after)%>%mutate(diff=before-after)
-summary<- summary%>% filter(before< 500, after<500)
-summary_spread <- summary %>% gather(group, posts, before:after)
-ggboxplot(summary_spread, x = "group", y = "posts", 
-          color = "group", palette = c("#00AFBB", "#E7B800"),
-          order = c("before", "after"),
-          ylab = "Число объявлений", xlab = "До/после обращения")
-
-# Возможные преобразования ------------------------------------------------
-
-result <- part2_feedback_try %>% group_by(user_id, activity_start_dt) %>% 
-  summarise(count = length(which(part1_try$item_starttime > fact_reaction_dt)))
-
-part2_feedback_september_bad_part<- part2_feedback_september_bad%>% dplyr:: filter(user_id> "1 640 839")
-
-part1_subset<- part1 %>% filter(user_id%in% part2_feedback_september_bad$user_id)
